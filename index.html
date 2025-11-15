@@ -1,0 +1,85 @@
+<!doctype html>
+        <html lang="es">
+        <head>
+          <meta charset="utf-8" />
+          <title>Cuestionario API Express</title>
+        </head>
+        <link rel="stylesheet" href="estilos.css">
+        <body>
+          <h1>Cuestionario desde Node.js </h1>
+          <h1>Jean Paulo Puentes</h1>
+
+          <button id="btnCargar">Pedir preguntas (POST)</button>
+
+          <form id="quizForm" style="display:none;">
+            <div id="listaPreguntas"></div>
+            <button type="submit">Enviar respuestas</button>
+          </form>
+
+          <div id="resultado"></div>
+
+          <script>
+            const API = "http://localhost:3000/api/questions";
+            const btnCargar = document.getElementById("btnCargar");
+            const quizForm = document.getElementById("quizForm");
+            const listaPreguntas = document.getElementById("listaPreguntas");
+            const resultado = document.getElementById("resultado");
+            let preguntas = [];
+            
+
+            btnCargar.addEventListener("click", async () => {
+              const res = await fetch(`${API}/start`, { method: "POST" });
+              const data = await res.json();
+              preguntas = data.questions;
+
+              listaPreguntas.innerHTML = "";
+              preguntas.forEach(q => {
+                const div = document.createElement("div");
+                div.className = "card";
+                div.innerHTML = `
+                  <p><strong>${q.id}.</strong> ${q.text}</p>
+                  ${q.options.map(opt => `
+                    <label>
+                      <input type="radio" name="q_${q.id}" value="${opt}"> ${opt}
+                    </label><br>
+                  `).join("")}
+                `;
+                listaPreguntas.appendChild(div);
+              });
+              quizForm.style.display = "block";
+              resultado.innerHTML = "";
+            });
+
+            quizForm.addEventListener("submit", async e => {
+              e.preventDefault();
+              const answers = preguntas.map(q => {
+                const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                return { id: q.id, answer: selected ? selected.value : "" };
+              });
+
+              const res = await fetch(`${API}/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answers })
+              });
+              const data = await res.json();
+              //imprimir en consola el resultado completo
+              console.log(data);
+
+              resultado.innerHTML = `
+                <h2>Resultado: ${data.score}/${data.total}</h2>
+                ${data.details.map(d => `
+                  <div class="card">
+                    <p>${d.text}</p>
+                    <p>Tu respuesta: ${d.yourAnswer ?? "(sin responder)"}</p>
+                    <p>Correcta: ${d.correctAnswer}</p>
+                    <p class="${d.correct ? "ok" : "bad"}">
+                      ${d.correct ? " Correcto" : " Incorrecto"}
+                    </p>
+                  </div>
+                `).join("")}
+              `;
+            });
+          </script>
+        </body>
+        </html>
